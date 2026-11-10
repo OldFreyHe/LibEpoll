@@ -97,7 +97,12 @@ void Channel::enableWriting()
 
 void Channel::disableWriting()
 {
+    if (!(events_ & EPOLLOUT))
+    {
+        return;
+    }
     events_ &= ~EPOLLOUT;
+    update();
 }
 
 void Channel::update()

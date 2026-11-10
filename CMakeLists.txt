@@ -32,6 +32,14 @@ target_link_libraries(epoll_core PUBLIC Threads::Threads)
 
 target_link_libraries("EPollServer" PRIVATE epoll_core)
 
+include(CTest)
+if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(connection_send_test tests/ConnectionSendTest.cpp)
+    target_link_libraries(connection_send_test PRIVATE epoll_core)
+    add_test(NAME connection_send COMMAND connection_send_test)
+    set_tests_properties(connection_send PROPERTIES TIMEOUT 15)
+endif()
+
 
 #target_link_libraries(epoll_server PUBLIC epoll_core)
 #target_link_libraries(epoll_client PUBLIC epoll_core)

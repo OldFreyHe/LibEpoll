@@ -87,7 +87,10 @@ void Buffer::makeSpace(std::size_t len)
 
     if (readIndex_ + writeableSize() < len)
     {
-        buffer_.resize(writeIndex_ + len);
+        // Compact before resetting the indices, including when storage grows.
+        std::vector<char> expanded(readable + len);
+        std::copy(buffer_.begin() + readIndex_, buffer_.begin() + writeIndex_, expanded.begin());
+        buffer_.swap(expanded);
     } else
     {
         std::copy(buffer_.begin() + readIndex_, buffer_.begin() + writeIndex_, buffer_.begin());

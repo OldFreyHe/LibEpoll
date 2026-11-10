@@ -25,8 +25,13 @@ public:
     // Configure and invoke on the connection's EventLoop thread.
     void setMessageCallback(MessageCallback callback);
 
+    // EventLoop thread only. True means accepted for sending, not delivered or acknowledged.
+    // The caller supplies sequence; responses must copy it from the request.
+    bool sendMessage(const MessageFrame& frame);
+
 private:
     void handleRead();
+    void handleWrite();
     void handleClose();
     void handleError();
 

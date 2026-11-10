@@ -38,6 +38,11 @@ Connection::Connection(EventLoop *loop, ConnectionManager* manager, int fd)
         handleError();
     });
 
+    channel_->setWriteCallback([this](uint32_t)
+    {
+        handleWrite();
+    });
+
     channel_->enableReading();
 }
 
@@ -97,11 +102,16 @@ void Connection::handleRead()
 
             const bool valid = parser_.parse(inputBuffer_, [this](MessageFrame&& frame)
             {
-                if (messageCallback_)
+                if (!closed_ && messageCallback_)
                 {
                     messageCallback_(*this, std::move(frame));
                 }
             });
+
+            if (closed_)
+            {
+                return;
+            }
 
             if (!valid)
             {
@@ -131,6 +141,61 @@ void Connection::handleRead()
         handleError();
         return;
     }
+}
+
+bool Connection::sendMessage(const MessageFrame& frame)
+{
+    if (closed_)
+    {
+        return false;
+    }
+
+    std::vector<uint8_t> encoded;
+    if (!MessageCodec::encode(frame, encoded))
+    {
+        return false;
+    }
+
+    // Append first so multiple messages retain their wire order across partial writes.
+    outputBuffer_.append(reinterpret_cast<const char*>(encoded.data()), encoded.size());
+    handleWrite();
+    return !closed_;
+}
+
+void Connection::handleWrite()
+{
+    if (closed_)
+    {
+        return;
+    }
+
+    while (outputBuffer_.readableSize() > 0)
+    {
+        // A disconnected peer must not terminate the process with SIGPIPE.
+        const ssize_t n = send(fd_, outputBuffer_.peek(),
+                               outputBuffer_.readableSize(), MSG_NOSIGNAL);
+        if (n > 0)
+        {
+            outputBuffer_.retrieve(static_cast<std::size_t>(n));
+            continue;
+        }
+
+        if (n < 0 && errno == EINTR)
+        {
+            continue;
+        }
+
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        {
+            channel_->enableWriting();
+            return;
+        }
+
+        handleError();
+        return;
+    }
+
+    channel_->disableWriting();
 }
 
 void Connection::handleClose()
