@@ -6,6 +6,7 @@
 #define LIBEPOLL_CONNECTIONMANAGER_H
 #include <memory>
 #include <unordered_map>
+#include "Connection.h"
 
 class Connection;
 class EventLoop;
@@ -26,8 +27,12 @@ public:
 
     void removeDeferred(int fd);
 
+    // Configure on the EventLoop thread; applies to existing and future connections.
+    void setMessageCallback(Connection::MessageCallback callback);
+
 private:
     EventLoop *loop_;
+    Connection::MessageCallback messageCallback_;
 
     std::unordered_map<int, std::unique_ptr<Connection>> connections_;
 };

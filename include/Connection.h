@@ -7,17 +7,23 @@
 
 #include <cstdint>
 #include <memory>
-#include "ConnectionManager.h"
 #include "Buffer.h"
+#include "MessageParser.h"
 
 class EventLoop;
 class Channel;
+class ConnectionManager;
 
 class Connection
 {
 public:
+    using MessageCallback = std::function<void(Connection&, MessageFrame&&)>;
+
     Connection(EventLoop *loop, ConnectionManager* manager, int fd);
     ~Connection();
+
+    // Configure and invoke on the connection's EventLoop thread.
+    void setMessageCallback(MessageCallback callback);
 
 private:
     void handleRead();
@@ -36,6 +42,9 @@ private:
     bool closed_ = false;
 
     Buffer inputBuffer_;
+
+    MessageParser parser_;
+    MessageCallback messageCallback_;
 
     Buffer outputBuffer_;
 };

@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <cstdint>
+#include "Connection.h"
 
 class EventLoop;
 class ConnectionManager;
@@ -23,6 +24,9 @@ public:
 
     void start();
     void stop();
+
+    // Set before start(). Called on the IO thread; do not block or destroy the connection.
+    void setMessageCallback(Connection::MessageCallback callback);
 
 private:
     std::unique_ptr<EventLoop> loop_;

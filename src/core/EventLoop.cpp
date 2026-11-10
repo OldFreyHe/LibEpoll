@@ -197,7 +197,7 @@ void EventLoop::doPendingTasks()
     }
 
 
-    for (auto& task : pendingTasks_)
+    for (auto& task : tasks)
     {
         if (task)
         {

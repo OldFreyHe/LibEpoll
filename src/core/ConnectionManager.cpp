@@ -5,6 +5,8 @@
 #include "ConnectionManager.h"
 #include "Connection.h"
 #include "EventLoop.h"
+#include <stdexcept>
+#include <utility>
 
 ConnectionManager::ConnectionManager(EventLoop *loop) : loop_(loop)
 {
@@ -27,6 +29,7 @@ Connection* ConnectionManager::add(int fd)
     }
 
     auto connection = std::make_unique<Connection>(loop_, this, fd);
+    connection->setMessageCallback(messageCallback_);
 
     Connection* ptr = connection.get();
 
@@ -63,4 +66,13 @@ void ConnectionManager::removeDeferred(int fd)
     {
         remove(fd);
     });
+}
+
+void ConnectionManager::setMessageCallback(Connection::MessageCallback callback)
+{
+    messageCallback_ = std::move(callback);
+    for (auto& entry : connections_)
+    {
+        entry.second->setMessageCallback(messageCallback_);
+    }
 }

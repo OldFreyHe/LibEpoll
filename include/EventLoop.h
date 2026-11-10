@@ -9,6 +9,7 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+#include <vector>
 
 class Channel;
 

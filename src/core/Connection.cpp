@@ -3,6 +3,7 @@
 //
 
 #include "Connection.h"
+#include "ConnectionManager.h"
 #include "EventLoop.h"
 
 #include <sys/epoll.h>
@@ -11,12 +12,14 @@
 #include "Channel.h"
 
 #include <iostream>
+#include <cerrno>
+#include <utility>
 
 #include <sys/uio.h>
 
 Connection::Connection(EventLoop *loop, ConnectionManager* manager, int fd)
-    : fd_(fd),
-      manager_(manager)
+    : manager_(manager),
+      fd_(fd)
 {
     channel_ = std::make_unique<Channel>(loop, fd_);
 
@@ -52,8 +55,18 @@ Connection::~Connection()
     }
 }
 
+void Connection::setMessageCallback(MessageCallback callback)
+{
+    messageCallback_ = std::move(callback);
+}
+
 void Connection::handleRead()
 {
+    if (closed_)
+    {
+        return;
+    }
+
     char extraBuffer[65536];
 
     while (true)
@@ -82,8 +95,19 @@ void Connection::handleRead()
                 inputBuffer_.append(extraBuffer, static_cast<std::size_t>(n) - writeable);
             }
 
-            std::cout << "received " << n << " bytes" << std::endl;
-            std::cout << "input buffer readable = " << inputBuffer_.readableSize() << std::endl;
+            const bool valid = parser_.parse(inputBuffer_, [this](MessageFrame&& frame)
+            {
+                if (messageCallback_)
+                {
+                    messageCallback_(*this, std::move(frame));
+                }
+            });
+
+            if (!valid)
+            {
+                handleError();
+                return;
+            }
 
             continue;
         }
@@ -111,21 +135,16 @@ void Connection::handleRead()
 
 void Connection::handleClose()
 {
-    std::cout << "Connection closed, fd = " << fd_ << std::endl;
-
-    channel_->remove();
-
-    close(fd_);
-    fd_ = -1;
+    closeConnection();
 }
 
 void Connection::handleError()
 {
-    std::cerr << "Connection error, fd = " << fd_ << std::endl;
-    channel_->remove();
-
-    close(fd_);
-    fd_ = -1;
+    if (!closed_)
+    {
+        std::cerr << "Connection error or invalid frame, fd = " << fd_ << std::endl;
+    }
+    closeConnection();
 }
 
 
@@ -137,6 +156,7 @@ bool Connection::closeConnection()
     }
 
     closed_ = true;
+    const int oldFd = fd_;
 
     if (channel_)
     {
@@ -147,6 +167,11 @@ bool Connection::closeConnection()
     {
         close(fd_);
         fd_ = -1;
+    }
+
+    if (manager_)
+    {
+        manager_->removeDeferred(oldFd);
     }
 
     return true;

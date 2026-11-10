@@ -7,6 +7,7 @@
 #include "Acceptor.h"
 #include "ConnectionManager.h"
 #include "EventLoop.h"
+#include <utility>
 
 EPollServer::EPollServer(uint16_t port)
 {
@@ -31,4 +32,9 @@ void EPollServer::stop()
 void EPollServer::start()
 {
     loop_->loop();
+}
+
+void EPollServer::setMessageCallback(Connection::MessageCallback callback)
+{
+    connectionManager_->setMessageCallback(std::move(callback));
 }
