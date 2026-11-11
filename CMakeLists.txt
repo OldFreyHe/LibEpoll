@@ -6,6 +6,17 @@ set(CMAKE_CXX_STANDARD 20)
 file(GLOB_RECURSE CORE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp)
 message(${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp)
 find_package(Threads REQUIRED)
+find_package(Protobuf REQUIRED MODULE)
+
+# Keep business payload schemas separate from the transport library.
+add_library(epoll_example_proto STATIC proto/echo.proto)
+protobuf_generate(TARGET epoll_example_proto LANGUAGE cpp APPEND_PATH)
+target_include_directories(epoll_example_proto PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+target_link_libraries(epoll_example_proto PUBLIC protobuf::libprotobuf)
+
+add_library(epoll_echo_example STATIC examples/EchoHandler.cpp)
+target_include_directories(epoll_echo_example PUBLIC examples include)
+target_link_libraries(epoll_echo_example PUBLIC epoll_example_proto)
 #file(GLOB_RECURSE SERVER_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp)
 #file(GLOB_RECURSE CLIENT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp)
 
@@ -30,10 +41,14 @@ target_include_directories("EPollServer" PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_include_directories(epoll_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(epoll_core PUBLIC Threads::Threads)
 
-target_link_libraries("EPollServer" PRIVATE epoll_core)
+target_link_libraries("EPollServer" PRIVATE epoll_core epoll_echo_example)
 
 include(CTest)
 if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(protobuf_echo_test tests/ProtobufEchoTest.cpp)
+    target_link_libraries(protobuf_echo_test PRIVATE epoll_core epoll_echo_example)
+    add_test(NAME protobuf_echo COMMAND protobuf_echo_test)
+    set_tests_properties(protobuf_echo PROPERTIES TIMEOUT 15)
     add_executable(connection_send_test tests/ConnectionSendTest.cpp)
     target_link_libraries(connection_send_test PRIVATE epoll_core)
     add_test(NAME connection_send COMMAND connection_send_test)

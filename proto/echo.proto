@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package libepoll.example;
+
+// The outer MessageFrame carries messageId and sequence.
+message EchoRequest {
+  string text = 1;
+}
+
+message EchoResponse {
+  string text = 1;
+}

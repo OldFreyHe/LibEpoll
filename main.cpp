@@ -1,12 +1,23 @@
 #include "EPollServer.h"
+#include "EchoHandler.h"
+#include <iostream>
 
 int main()
 {
     EPollServer server(9008);
-    // Minimal echo example: preserve messageId, sequence and the opaque payload.
+    // Decode a Protobuf request and reply using the original sequence.
     server.setMessageCallback([](Connection& connection, MessageFrame&& frame)
     {
-        connection.sendMessage(frame);
+        MessageFrame response;
+        if (!libepoll::example::buildEchoResponse(frame, response))
+        {
+            std::cerr << "Unknown messageId or invalid Protobuf payload\n";
+            return;
+        }
+        if (!connection.sendMessage(response))
+        {
+            std::cerr << "Failed to send echo response\n";
+        }
     });
     server.start();
 
