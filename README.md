@@ -25,6 +25,20 @@ bash run_tests.sh -V                  # Show full test output
 
 ## Protobuf echo example
 
+The server registers `EchoRequest -> EchoResponse` with `MessageDispatcher`.
+The dispatcher selects the handler by request ID, uses `ProtobufCodec` to
+parse the payload, invokes the typed handler, then serializes and sends the
+response with the original head and sequence. Business handlers only fill the
+response fields. Registration rejects duplicate request IDs and empty handlers.
+Register handlers before `start()`; handlers run synchronously on the IO thread.
+`dispatch()` returns `Sent` (accepted for sending), `UnknownMessage`,
+`InvalidPayload`, `EncodeFailed` or `SendFailed`. Handler exceptions propagate
+to the caller. This initial API automatically sends one response per request;
+it does not yet support asynchronous worker replies or request timeouts.
+
+`message_dispatcher` tests routing, automatic responses, sequence preservation,
+duplicate registration, malformed payload rejection and empty proto3 requests.
+
 `proto/echo.proto` defines `EchoRequest` (messageId 1) and `EchoResponse`
 (messageId 2). CMake runs `protoc` during the build; generated `.pb.h` and
 `.pb.cc` files stay in the build directory. Do not generate them into `include`
