@@ -23,7 +23,7 @@ public:
         {
             throw std::invalid_argument("MessageDispatcher: empty handler");
         }
-        if (handlers_.contains(requestId))
+        if (handlers_.find(requestId) != handlers_.end())
         {
             throw std::invalid_argument("MessageDispatcher: duplicate request ID");
         }

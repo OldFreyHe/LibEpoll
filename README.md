@@ -1,4 +1,25 @@
 # LibEpoll
+
+## Nonblocking Connector
+
+`Connector` performs a one-shot connection to a numeric IPv4 address. Call
+`start(address, port, timeout, callback)` on the owning IO thread or before
+`loop()`. Completion reports `Connected`, `Failed`, `Timeout`, or `Cancelled`.
+On success the callback owns the nonblocking socket and should pass it to
+`ConnectionManager::add(fd)` (or close it). On failure fd is -1 and the error
+argument carries an errno value. Callbacks must not throw.
+
+The loop must outlive the connector. Start, cancel and destruction belong to
+the IO thread; destruction cancels silently, while `cancel()` notifies the
+callback. Immediate success/failure may invoke the callback inside `start()`.
+Writable events are verified using `SO_ERROR`; timers use a weak reference and
+completed connections ignore later events. DNS, reconnect and cross-thread
+connector control are not provided yet.
+
+`connector` tests a real loopback TCP Protobuf request/response through
+Connector, Connection, RequestManager and MessageDispatcher, plus refusal on a
+bound non-listening port. Timeout timing depends on network behavior and is
+not covered by this local integration test.
 A Network Communication Dynamic Library Implemented Using EPoll
 
 ## Run tests on Linux
@@ -25,7 +46,7 @@ successful response payloads decoded with `ProtobufCodec::decode()`.
 
 ## Build and execute tests
 
-Requires CMake 4.3 or later, a C++20 compiler, and a native build tool
+Requires CMake 3.20 or later, a C++20 compiler, and a native build tool
 (such as Make or Ninja), plus Protobuf's C++ library and `protoc` compiler.
 Use matching Protobuf compiler and library versions.
 

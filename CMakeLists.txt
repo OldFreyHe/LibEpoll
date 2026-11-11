@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 4.3)
+cmake_minimum_required(VERSION 3.20)
 project(LibEPoll)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 file(GLOB_RECURSE CORE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp)
 message(${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp)
@@ -45,6 +46,10 @@ target_link_libraries("EPollServer" PRIVATE epoll_core epoll_echo_example)
 
 include(CTest)
 if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(connector_test tests/ConnectorTest.cpp)
+    target_link_libraries(connector_test PRIVATE epoll_core epoll_example_proto)
+    add_test(NAME connector COMMAND connector_test)
+    set_tests_properties(connector PROPERTIES TIMEOUT 15)
     add_executable(request_manager_test tests/RequestManagerTest.cpp)
     target_link_libraries(request_manager_test PRIVATE epoll_core)
     add_test(NAME request_manager COMMAND request_manager_test)
