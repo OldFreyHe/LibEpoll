@@ -9,6 +9,7 @@
 #include <memory>
 #include "Buffer.h"
 #include "MessageParser.h"
+#include "RequestManager.h"
 
 class EventLoop;
 class Channel;
@@ -28,6 +29,8 @@ public:
     // EventLoop thread only. True means accepted for sending, not delivered or acknowledged.
     // The caller supplies sequence; responses must copy it from the request.
     bool sendMessage(const MessageFrame& frame);
+    // Obtain on IO thread, then retain this shared handle for worker calls.
+    std::shared_ptr<RequestManager> requests() const { return requests_; }
 
 private:
     void handleRead();
@@ -52,6 +55,7 @@ private:
     MessageCallback messageCallback_;
 
     Buffer outputBuffer_;
+    std::shared_ptr<RequestManager> requests_;
 };
 
 #endif //LIBEPOLL_CONNECTION_H

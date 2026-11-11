@@ -3,6 +3,28 @@ A Network Communication Dynamic Library Implemented Using EPoll
 
 ## Run tests on Linux
 
+## Synchronous and asynchronous requests
+
+On the IO thread, obtain `auto requests = connection.requests()` and retain
+that shared handle for calls from other threads. `requestAsync(frame,
+expectedResponseId, timeout, callback)` queues submission without blocking;
+`request(frame, expectedResponseId, timeout)` waits for the same completion
+mechanism. The manager assigns sequence numbers, overriding the outgoing value.
+Responses must match both sequence and expected ID. Deadlines include queueing
+time and use a monotonic clock. Completion removes the pending entry first,
+so duplicate responses cannot complete it twice.
+
+Synchronous calls on the owning IO thread throw `logic_error`. The EventLoop
+must be running and must outlive every request call and retained handle.
+Close connections and complete pending requests before stopping their loop;
+`quit()` alone does not cancel pending requests. Callbacks run on the IO thread
+and must not block or throw. Unmatched/late frames continue to the application
+dispatcher, which must only register request IDs as business handlers.
+Protobuf request payloads can be prepared with `ProtobufCodec::encode()` and
+successful response payloads decoded with `ProtobufCodec::decode()`.
+
+## Build and execute tests
+
 Requires CMake 4.3 or later, a C++20 compiler, and a native build tool
 (such as Make or Ninja), plus Protobuf's C++ library and `protoc` compiler.
 Use matching Protobuf compiler and library versions.

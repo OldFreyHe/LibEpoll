@@ -21,6 +21,7 @@ Connection::Connection(EventLoop *loop, ConnectionManager* manager, int fd)
     : manager_(manager),
       fd_(fd)
 {
+    requests_ = std::make_shared<RequestManager>(loop, this);
     channel_ = std::make_unique<Channel>(loop, fd_);
 
     channel_->setReadCallback([this](uint32_t)
@@ -48,6 +49,7 @@ Connection::Connection(EventLoop *loop, ConnectionManager* manager, int fd)
 
 Connection::~Connection()
 {
+    requests_->disconnect();
     if (channel_)
     {
         channel_->remove();
@@ -102,7 +104,7 @@ void Connection::handleRead()
 
             const bool valid = parser_.parse(inputBuffer_, [this](MessageFrame&& frame)
             {
-                if (!closed_ && messageCallback_)
+                if (!closed_ && !requests_->accept(frame) && messageCallback_)
                 {
                     messageCallback_(*this, std::move(frame));
                 }
@@ -238,6 +240,8 @@ bool Connection::closeConnection()
     {
         manager_->removeDeferred(oldFd);
     }
+
+    requests_->disconnect();
 
     return true;
 }

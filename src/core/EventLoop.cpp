@@ -7,6 +7,8 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 #include <stdexcept>
+#include <algorithm>
+#include <climits>
 
 #include "Connection.h"
 #include "Channel.h"
@@ -56,13 +58,22 @@ EventLoop::~EventLoop() {
 
 void EventLoop::loop()
 {
+    currentLoop_ = this;
+    struct Reset { EventLoop*& slot; ~Reset() { slot = nullptr; } } reset{currentLoop_};
     constexpr int MAX_EVENTS = 64;
 
     epoll_event events[MAX_EVENTS];
 
     while (running_)
     {
-        const int count = epoll_wait(epoll_fd_, events, MAX_EVENTS, -1);
+        int timeout = -1;
+        if (!timers_.empty())
+        {
+            auto remaining = std::chrono::ceil<std::chrono::milliseconds>(
+                timers_.begin()->first - std::chrono::steady_clock::now()).count();
+            timeout = static_cast<int>(std::clamp<long long>(remaining, 0, INT_MAX));
+        }
+        const int count = epoll_wait(epoll_fd_, events, MAX_EVENTS, timeout);
 
         if (count == -1)
         {
@@ -87,7 +98,24 @@ void EventLoop::loop()
         }
 
         doPendingTasks();
+        const auto now = std::chrono::steady_clock::now();
+        while (!timers_.empty() && timers_.begin()->first <= now)
+        {
+            auto callback = std::move(timers_.begin()->second);
+            timers_.erase(timers_.begin());
+            callback();
+        }
     }
+}
+
+bool EventLoop::isInLoopThread() const
+{
+    return currentLoop_ == this;
+}
+
+void EventLoop::runAfter(std::chrono::milliseconds delay, std::function<void()> callback)
+{
+    timers_.emplace(std::chrono::steady_clock::now() + delay, std::move(callback));
 }
 
 void EventLoop::quit()
