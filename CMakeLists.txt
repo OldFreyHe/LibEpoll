@@ -44,6 +44,9 @@ target_link_libraries(epoll_core PUBLIC Threads::Threads)
 
 target_link_libraries("EPollServer" PRIVATE epoll_core epoll_echo_example)
 
+add_executable(EPollClient examples/EchoClient.cpp)
+target_link_libraries(EPollClient PRIVATE epoll_core epoll_example_proto)
+
 include(CTest)
 if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_executable(connector_test tests/ConnectorTest.cpp)

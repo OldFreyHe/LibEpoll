@@ -2,6 +2,29 @@
 
 ## Nonblocking Connector
 
+### Run the client/server examples
+
+After `bash run_tests.sh` builds the project, start the server in one terminal:
+
+```bash
+./build/tests/EPollServer
+```
+
+In a second terminal, run either client mode (port 9008):
+
+```bash
+./build/tests/EPollClient async 127.0.0.1 "hello async"
+./build/tests/EPollClient sync 127.0.0.1 "hello sync"
+```
+
+Both print the matching response sequence and echoed text, then exit. Async
+mode completes in an IO-thread callback. Sync mode waits on a business thread
+while the main thread continues polling the EventLoop. Connection and request
+timeouts are each three seconds; failure returns a nonzero process exit code.
+The client obtains a shared RequestManager handle on the IO thread, so the
+worker never dereferences a Connection pointer. It joins the worker before
+destroying the connections and loop. Stop the example server with Ctrl+C.
+
 `Connector` performs a one-shot connection to a numeric IPv4 address. Call
 `start(address, port, timeout, callback)` on the owning IO thread or before
 `loop()`. Completion reports `Connected`, `Failed`, `Timeout`, or `Cancelled`.
