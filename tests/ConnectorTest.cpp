@@ -5,6 +5,7 @@
 #include "MessageDispatcher.h"
 #include "MessageId.h"
 #include "echo.pb.h"
+#include "EchoWorker.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -31,14 +32,19 @@ int main()
     {
         EventLoop loop;
         ConnectionManager server(&loop), client(&loop);
+        WorkerThread workers("echo");
         MessageDispatcher dispatcher;
-        dispatcher.registerHandler<EchoRequest, EchoResponse>(
-            ECHO_CATEGORY_REQUEST, ECHO_CATEGORY_RESPONSE,
-            [](Connection&, const EchoRequest& request, EchoResponse& response)
-            { response.set_text(request.text()); });
+        auto echoWorker = std::make_shared<EchoWorker>();
+        dispatcher.registerWorker(workers, echoWorker);
+        WorkerThread anotherThread("other");
+        MessageDispatcher otherDispatcher;
+        bool rebindRejected = false;
+        try { otherDispatcher.registerWorker(anotherThread, echoWorker); }
+        catch (const std::invalid_argument&) { rebindRejected = true; }
+        check(rebindRejected);
         server.setMessageCallback([&](Connection& connection, MessageFrame&& frame)
         {
-            check(dispatcher.dispatch(connection, std::move(frame)) == MessageDispatcher::Result::Sent);
+            check(dispatcher.dispatch(connection, std::move(frame)) == MessageDispatcher::Result::Queued);
         });
         Channel acceptChannel(&loop, listener);
         acceptChannel.setReadCallback([&](int32_t)

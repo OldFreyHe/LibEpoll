@@ -1,5 +1,57 @@
 # LibEpoll
 
+## Business workers
+
+The preferred business API uses fixed `WorkerThread` groups instead of random
+pool scheduling. Define a worker derived from `MessageWorker<Request, Response>`
+and override `processMessage(const Request&, Response&)`. Specialize
+`MessageTraits<Request>::id` and `MessageTraits<Response>::id` once in the
+application protocol header (see `examples/EchoWorker.h`). Then register:
+
+```cpp
+WorkerThread accountThread("account");
+MessageDispatcher dispatcher;
+dispatcher.registerWorker(accountThread, std::make_shared<EchoWorker>());
+// Register other worker types on accountThread to share the same execution thread.
+```
+
+Each thread owns a bounded FIFO. All workers bound to it run serially on that
+same OS thread; different groups run concurrently. A worker instance cannot
+be rebound to another thread, and duplicate request IDs are rejected per
+dispatcher. Register before dispatch starts. Dispatcher/task captures keep the
+worker alive. Captured external dependencies must also outlive its tasks.
+The thread name is a logical label, not an OS thread name. A slow task delays
+all workers in its group. Worker construction/destruction are not guaranteed
+to run on that thread; only dispatched processing is.
+
+Declare EventLoop/server first, WorkerThreads second and dispatcher last so
+threads drain before connections and the loop are destroyed. Do not access
+worker state from outside its execution thread without synchronization.
+`worker_thread` tests shared thread identity, distinct group threads and FIFO;
+`connector` covers inherited worker dispatch and rejects cross-thread rebinding.
+
+`WorkerPool(threadCount, queueCapacity)` provides a bounded FIFO queue; `submit`
+returns false for a full queue or an empty task. Destruction drains accepted
+tasks and joins workers. Destroy the pool on its owner thread, not inside a task.
+Task exceptions are logged and workers continue running.
+
+`MessageDispatcher::registerWorkerHandler<Request, Response>(requestId,
+responseId, pool, handler)` parses requests on the IO thread and runs
+`handler(const Request&, Response&)` on a worker. Responses retain the original
+sequence and are posted back to the owning EventLoop. Closed connections drop
+replies safely; replies never locate a connection by a potentially reused fd.
+Handlers may run concurrently and finish out of order. Captured state must be
+thread-safe. The existing `registerHandler` remains available for short IO-thread
+handlers. Worker submission returns `Queued` or `Busy`, not delivery confirmation.
+Busy queues and failed tasks currently produce no protocol error response;
+callers can time out. Define application error messages before adding retries.
+
+The pool must finish all tasks before the EventLoop is destroyed; keep it alive
+through connection cleanup too. Stop accepting work before draining the pool.
+This version does not implement coordinated graceful server shutdown.
+`worker_pool` checks queue capacity and draining; `connector` now exercises
+real TCP requests through worker handling and back to the original IO thread.
+
 ## Nonblocking Connector
 
 ### Run the client/server examples

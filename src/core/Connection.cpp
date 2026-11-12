@@ -19,8 +19,9 @@
 
 Connection::Connection(EventLoop *loop, ConnectionManager* manager, int fd)
     : manager_(manager),
-      fd_(fd)
+      fd_(fd), loop_(loop)
 {
+    replyState_ = std::make_shared<ReplyState>(ReplyState{this});
     requests_ = std::make_shared<RequestManager>(loop, this);
     channel_ = std::make_unique<Channel>(loop, fd_);
 
@@ -49,6 +50,7 @@ Connection::Connection(EventLoop *loop, ConnectionManager* manager, int fd)
 
 Connection::~Connection()
 {
+    replyState_->connection = nullptr;
     requests_->disconnect();
     if (channel_)
     {
@@ -65,6 +67,20 @@ Connection::~Connection()
 void Connection::setMessageCallback(MessageCallback callback)
 {
     messageCallback_ = std::move(callback);
+}
+
+std::function<void(MessageFrame)> Connection::replySender() const
+{
+    std::weak_ptr<ReplyState> weak = replyState_;
+    auto* loop = loop_;
+    return [weak, loop](MessageFrame frame)
+    {
+        loop->queueInLoop([weak, frame = std::move(frame)]
+        {
+            if (auto state = weak.lock(); state && state->connection)
+                state->connection->sendMessage(frame);
+        });
+    };
 }
 
 void Connection::handleRead()
@@ -223,6 +239,7 @@ bool Connection::closeConnection()
     }
 
     closed_ = true;
+    replyState_->connection = nullptr;
     const int oldFd = fd_;
 
     if (channel_)

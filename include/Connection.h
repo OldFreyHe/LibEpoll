@@ -31,6 +31,9 @@ public:
     bool sendMessage(const MessageFrame& frame);
     // Obtain on IO thread, then retain this shared handle for worker calls.
     std::shared_ptr<RequestManager> requests() const { return requests_; }
+    // Obtain on IO thread; returned function may be called from workers.
+    // Loop must outlive all calls. Disconnected connections silently drop replies.
+    std::function<void(MessageFrame)> replySender() const;
 
 private:
     void handleRead();
@@ -56,6 +59,9 @@ private:
 
     Buffer outputBuffer_;
     std::shared_ptr<RequestManager> requests_;
+    struct ReplyState { Connection* connection; };
+    std::shared_ptr<ReplyState> replyState_;
+    EventLoop* loop_;
 };
 
 #endif //LIBEPOLL_CONNECTION_H
