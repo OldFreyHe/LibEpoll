@@ -21,6 +21,7 @@ public:
     Acceptor &operator=(const Acceptor &) = delete;
 
     void start();
+    void stop();
 
 private:
     void handleRead();

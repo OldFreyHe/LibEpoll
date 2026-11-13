@@ -67,6 +67,10 @@ void ConnectionManager::removeDeferred(int fd)
         remove(fd);
     });
 }
+void ConnectionManager::shutdown()
+{
+    for (auto& entry : connections_) entry.second->shutdown();
+}
 
 void ConnectionManager::setMessageCallback(Connection::MessageCallback callback)
 {

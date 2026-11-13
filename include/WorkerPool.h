@@ -17,6 +17,8 @@ public:
     WorkerPool(const WorkerPool&) = delete;
     WorkerPool& operator=(const WorkerPool&) = delete;
     bool submit(std::function<void()> task);
+    void stopAccepting();
+    bool idle();
 private:
     void run();
     std::mutex mutex_;
@@ -25,5 +27,6 @@ private:
     std::vector<std::thread> threads_;
     std::size_t capacity_;
     bool stopping_ = false;
+    std::size_t active_ = 0;
 };
 #endif

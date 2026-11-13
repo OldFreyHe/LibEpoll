@@ -112,6 +112,7 @@ Acceptor::~Acceptor()
 
 void Acceptor::handleRead()
 {
+    if (listenFd_ == -1) return;
     while (true)
     {
         sockaddr_in clientAddr{};
@@ -133,6 +134,11 @@ void Acceptor::handleRead()
 
         throw std::runtime_error("Accept failed");
     }
+}
+void Acceptor::stop()
+{
+    listenChannel_->remove();
+    if (listenFd_ != -1) { close(listenFd_); listenFd_ = -1; }
 }
 
 void Acceptor::handleError()

@@ -1,5 +1,23 @@
 # LibEpoll
 
+## Coordinated server stop
+
+Use `server.createWorkerThread(name)` for execution groups managed by the
+server, then register workers on the returned thread reference. `server.stop()`
+is an idempotent asynchronous request callable from another thread or an IO
+callback. `start()` returns after cleanup: stop listening, close connections
+(pending requests complete as Disconnected), reject new worker submissions,
+drain accepted tasks while IO keeps running, then quit. Replies during stop
+are discarded; this is cancellation-and-drain, not guaranteed response delivery.
+Join the thread executing `start()` before destroying the server. Worker tasks
+must eventually return; arbitrary blocked user code cannot be forcibly stopped.
+External WorkerThreads are not managed by server.stop(). Signal handling is not
+installed: do not call stop directly from a POSIX signal handler.
+
+`server_shutdown` checks stop during an active worker task, queue rejection,
+repeated stop and stop-before-start. It does not yet cover all pending-request
+and worker-routing combinations during shutdown.
+
 ## Business workers
 
 The preferred business API uses fixed `WorkerThread` groups instead of random

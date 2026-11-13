@@ -220,6 +220,10 @@ void Connection::handleClose()
 {
     closeConnection();
 }
+void Connection::shutdown()
+{
+    closeConnection();
+}
 
 void Connection::handleError()
 {

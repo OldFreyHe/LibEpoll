@@ -34,6 +34,16 @@ bool WorkerPool::submit(std::function<void()> task)
     ready_.notify_one();
     return true;
 }
+void WorkerPool::stopAccepting()
+{
+    { std::lock_guard<std::mutex> lock(mutex_); stopping_ = true; }
+    ready_.notify_all();
+}
+bool WorkerPool::idle()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return tasks_.empty() && active_ == 0;
+}
 void WorkerPool::run()
 {
     for (;;)
@@ -45,9 +55,11 @@ void WorkerPool::run()
             if (tasks_.empty()) return;
             task = std::move(tasks_.front());
             tasks_.pop_front();
+            ++active_;
         }
         try { task(); }
         catch (const std::exception& error) { std::cerr << "Worker task failed: " << error.what() << '\n'; }
         catch (...) { std::cerr << "Worker task failed with unknown exception\n"; }
+        { std::lock_guard<std::mutex> lock(mutex_); --active_; }
     }
 }

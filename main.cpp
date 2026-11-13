@@ -8,7 +8,7 @@
 int main()
 {
     EPollServer server(9008);
-    WorkerThread accountThread("account");
+    auto& accountThread = server.createWorkerThread("account");
     MessageDispatcher dispatcher;
     dispatcher.registerWorker(accountThread, std::make_shared<EchoWorker>());
     server.setMessageCallback([&dispatcher](Connection& connection, MessageFrame&& frame)

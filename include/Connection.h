@@ -34,6 +34,7 @@ public:
     // Obtain on IO thread; returned function may be called from workers.
     // Loop must outlive all calls. Disconnected connections silently drop replies.
     std::function<void(MessageFrame)> replySender() const;
+    void shutdown(); // IO thread only: reject replies and complete pending requests.
 
 private:
     void handleRead();

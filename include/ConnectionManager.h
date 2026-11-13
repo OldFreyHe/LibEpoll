@@ -26,6 +26,7 @@ public:
     Connection* find(int fd);
 
     void removeDeferred(int fd);
+    void shutdown(); // IO thread only; destruction remains deferred until the event batch ends.
 
     // Configure on the EventLoop thread; applies to existing and future connections.
     void setMessageCallback(Connection::MessageCallback callback);

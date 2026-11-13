@@ -12,6 +12,8 @@ public:
     explicit WorkerThread(std::string name, std::size_t capacity = 1024)
         : name_(std::move(name)), executor_(1, capacity) {}
     bool submit(std::function<void()> task) { return executor_.submit(std::move(task)); }
+    void stopAccepting() { executor_.stopAccepting(); }
+    bool idle() { return executor_.idle(); }
     const std::string& name() const { return name_; }
     std::shared_ptr<const int> identity() const { return identity_; }
 private:
