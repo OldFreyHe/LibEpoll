@@ -29,6 +29,32 @@ int main()
     const auto port = ntohs(address.sin_port);
     check(listen(listener, 8) == 0);
 
+    // Cancel before processing the writable event; completion must occur once.
+    {
+        EventLoop loop;
+        Connector connector(&loop);
+        int callbacks = 0;
+        connector.start("127.0.0.1", port, 1s,
+            [&](Connector::Status status, int fd, int error)
+            {
+                ++callbacks;
+                if (status == Connector::Status::Connected)
+                {
+                    // Immediate connect is also legal; ownership still transfers.
+                    close(fd);
+                }
+                else check(status == Connector::Status::Cancelled && error == ECANCELED);
+            });
+        connector.cancel();
+        connector.cancel();
+        check(callbacks == 1);
+        loop.queueInLoop([&] { loop.quit(); });
+        loop.loop();
+        check(callbacks == 1);
+        int accepted = accept4(listener, nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
+        if (accepted >= 0) close(accepted);
+    }
+
     {
         EventLoop loop;
         ConnectionManager server(&loop), client(&loop);
@@ -55,6 +81,7 @@ int main()
         });
         acceptChannel.enableReading();
         bool complete = false;
+        std::thread synchronousCaller;
         Connector connector(&loop);
         connector.start("127.0.0.1", port, 1s,
             [&](Connector::Status status, int fd, int error)
@@ -75,11 +102,21 @@ int main()
                         check(ProtobufCodec::decode(result.response, response));
                         check(response.text() == "real TCP protobuf request");
                         complete = true;
-                        loop.quit();
                     });
+                auto requests = connection->requests();
+                synchronousCaller = std::thread([&, requests, frame]
+                {
+                    auto result = requests->request(frame, ECHO_CATEGORY_RESPONSE, 1s);
+                    check(result.status == RequestManager::Status::Success);
+                    EchoResponse response;
+                    check(ProtobufCodec::decode(result.response, response));
+                    check(response.text() == "real TCP protobuf request");
+                    loop.queueInLoop([&] { check(complete); loop.quit(); });
+                });
             });
         loop.runAfter(2s, [] { check(false); });
         loop.loop();
+        synchronousCaller.join();
         check(complete);
         acceptChannel.remove();
     }

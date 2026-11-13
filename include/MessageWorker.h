@@ -1,6 +1,7 @@
 #ifndef LIBEPOLL_MESSAGE_WORKER_H
 #define LIBEPOLL_MESSAGE_WORKER_H
 #include <memory>
+#include <cstdint>
 
 // Specialize once per request type in the application protocol header:
 // template<> struct MessageTraits<MyRequest> { static constexpr uint32_t id = ...; };

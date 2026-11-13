@@ -65,4 +65,28 @@ int main()
     });
     closingLoop.loop();
     check(disconnected);
+
+    // Both already-pending async and synchronous requests finish on shutdown.
+    EventLoop shutdownLoop;
+    int pair[2];
+    check(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, pair) == 0);
+    Connection closingConnection(&shutdownLoop, nullptr, pair[0]);
+    auto pending = closingConnection.requests();
+    int completions = 0;
+    pending->requestAsync(request, 2, 1s, [&](RequestManager::Result result)
+    {
+        check(result.status == RequestManager::Status::Disconnected);
+        ++completions;
+    });
+    std::thread waiting([&]
+    {
+        auto result = pending->request(request, 2, 1s);
+        check(result.status == RequestManager::Status::Disconnected);
+        shutdownLoop.quit();
+    });
+    shutdownLoop.runAfter(20ms, [&] { closingConnection.shutdown(); });
+    shutdownLoop.loop();
+    waiting.join();
+    check(completions == 1);
+    close(pair[1]);
 }

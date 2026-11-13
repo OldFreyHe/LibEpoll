@@ -1,5 +1,16 @@
 # LibEpoll
 
+## Additional integration coverage
+
+`connector` exercises both asynchronous and blocking successful TCP requests
+and cancellation before writable-event processing. `worker_routing` registers
+two inherited workers under different IDs on the same WorkerThread, verifies
+their thread identity, and closes the connection before queued replies run.
+`request_manager` checks that closing a connection completes both async and
+blocking callers as Disconnected. Run all tests with `bash run_tests.sh`.
+Connector timeout still needs a controlled network fault test; local refusal
+and cancellation do not constitute timeout coverage.
+
 ## Coordinated server stop
 
 Use `server.createWorkerThread(name)` for execution groups managed by the
