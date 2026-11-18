@@ -154,6 +154,13 @@ Requires CMake 3.20 or later, a C++20 compiler, and a native build tool
 (such as Make or Ninja), plus Protobuf's C++ library and `protoc` compiler.
 Use matching Protobuf compiler and library versions.
 
+The test suite demonstrates both layers of the C++ testing setup:
+
+- CTest registers, filters, times out, and runs the project's test programs.
+- GoogleTest provides `TEST`, `ASSERT_*`, and `EXPECT_*` in
+  `tests/MessageCodecGTest.cpp`. CMake first looks for an installed GoogleTest
+  package and otherwise downloads GoogleTest 1.14.0 during configuration.
+
 ```bash
 bash run_tests.sh
 ```
@@ -167,6 +174,7 @@ Additional arguments are passed to CTest:
 
 ```bash
 bash run_tests.sh -R connection_send  # Run matching tests
+bash run_tests.sh -R '^gtest\.'        # Run only discovered GoogleTest cases
 bash run_tests.sh -V                  # Show full test output
 ```
 

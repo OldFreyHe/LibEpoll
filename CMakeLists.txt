@@ -49,6 +49,27 @@ target_link_libraries(EPollClient PRIVATE epoll_core epoll_example_proto)
 
 include(CTest)
 if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # GoogleTest supplies assertions and test-case organization. CTest remains
+    # the project-level runner that discovers and executes every test.
+    find_package(GTest CONFIG QUIET)
+    if(NOT GTest_FOUND)
+        include(FetchContent)
+        FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        )
+        FetchContent_MakeAvailable(googletest)
+    endif()
+
+    add_executable(message_codec_gtest tests/MessageCodecGTest.cpp)
+    target_link_libraries(message_codec_gtest PRIVATE epoll_core GTest::gtest_main)
+    include(GoogleTest)
+    gtest_discover_tests(message_codec_gtest
+        TEST_PREFIX "gtest."
+        DISCOVERY_TIMEOUT 15
+    )
+
     add_executable(worker_routing_test tests/WorkerRoutingTest.cpp)
     target_include_directories(worker_routing_test PRIVATE examples)
     target_link_libraries(worker_routing_test PRIVATE epoll_core epoll_example_proto)
